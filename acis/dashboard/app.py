@@ -15,10 +15,14 @@ import time
 
 from acis.config.settings import settings
 from acis.dashboard.visualizations import create_mindmap, create_trend_chart
+from acis.utils.data_storage import get_recent_activities, get_latest_insights, log_activity
 
 
 # API URL
 API_BASE_URL = f"http://{settings.host}:{settings.port}/api/v1"
+
+# API Headers with API key
+API_HEADERS = {"X-API-Key": settings.api_key}
 
 
 def main():
@@ -87,41 +91,52 @@ def render_home_page():
     
     # Recent activity
     st.subheader("Recent Activity")
-    activity_data = [
-        {"timestamp": "2023-07-01 09:15", "type": "Report", "description": "Tesla Q2 Analysis"},
-        {"timestamp": "2023-06-30 14:22", "type": "Alert", "description": "Apple's new product announcement"},
-        {"timestamp": "2023-06-30 10:05", "type": "Update", "description": "Microsoft financial data refreshed"},
-        {"timestamp": "2023-06-29 16:45", "type": "Report", "description": "Google competitive positioning"},
-        {"timestamp": "2023-06-28 13:30", "type": "Search", "description": "Netflix market strategy"}
-    ]
     
-    activity_df = pd.DataFrame(activity_data)
-    st.dataframe(activity_df, hide_index=True)
+    # Get real activity data
+    activity_data = get_recent_activities(limit=5)
+    
+    if activity_data:
+        activity_df = pd.DataFrame(activity_data)
+        st.dataframe(activity_df, hide_index=True)
+    else:
+        st.info("No recent activity recorded yet. Start by using the search functionality.")
     
     # Quick actions
     st.subheader("Quick Actions")
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("Generate New Report"):
+            log_activity("Navigation", "Navigated to Reports page")
             st.session_state.page = "Reports"
     with col2:
         if st.button("Create Mind Map"):
+            log_activity("Navigation", "Navigated to Mind Maps page")
             st.session_state.page = "Mind Maps"
     with col3:
         if st.button("View Trends"):
+            log_activity("Navigation", "Navigated to Trends page")
             st.session_state.page = "Trends"
     
-    # Sample insights
+    # Latest insights
     st.subheader("Latest Insights")
-    insights = [
-        "Tesla is expanding manufacturing in Asia with a new factory announcement",
-        "Apple's supply chain diversification showing positive impact on margins",
-        "Microsoft cloud services revenue growing at 24% YoY",
-        "Google's AI investment increasing by 35% in 2023"
-    ]
     
-    for insight in insights:
-        st.info(insight)
+    # Get real insights
+    insights = get_latest_insights(limit=5)
+    
+    if insights:
+        for insight in insights:
+            sentiment = insight.get("sentiment", 0)
+            sentiment_color = "green" if sentiment > 0.1 else "red" if sentiment < -0.1 else "gray"
+            
+            with st.container():
+                st.markdown(f"**{insight.get('competitor', 'Unknown')}**: "
+                          f"{insight.get('content', '')}")
+                st.caption(f"Source: {insight.get('source', 'Unknown')} | "
+                         f"Sentiment: <span style='color:{sentiment_color}'>{sentiment:.2f}</span>",
+                         unsafe_allow_html=True)
+                st.divider()
+    else:
+        st.info("No insights detected yet. Try searching for competitive intelligence using the Search page.")
 
 
 def render_search_page():
@@ -142,26 +157,39 @@ def render_search_page():
             st.session_state.search_query = query
             st.session_state.max_results = max_results
             st.session_state.search_submitted = True
+            
+            # Log search activity
+            log_activity("UI Search", f"Query: {query}")
     
     # Display search results
     if st.session_state.get("search_submitted", False):
         with st.spinner("Searching..."):
             try:
-                # Call the actual backend API
+                # Call the backend API with API key in headers
                 response = requests.post(
                     f"{API_BASE_URL}/search",
-                    json={"query": st.session_state.search_query, "max_results": st.session_state.max_results}
+                    json={"query": st.session_state.search_query, "max_results": st.session_state.max_results},
+                    headers=API_HEADERS
                 )
                 
                 if response.status_code == 200:
                     results = response.json().get("results", [])
+                    
+                    # Log successful search results
+                    log_activity("Search Results", f"Found {len(results)} results for query: {st.session_state.search_query}")
                 else:
                     st.error(f"Error: API returned status code {response.status_code}")
                     st.json(response.json())
                     results = []
+                    
+                    # Log error
+                    log_activity("Search Error", f"API error {response.status_code} for query: {st.session_state.search_query}")
             except Exception as e:
                 st.error(f"Error connecting to API: {str(e)}")
                 results = []
+                
+                # Log connection error
+                log_activity("Connection Error", f"Error connecting to search API: {str(e)}")
             
             # Display results
             st.subheader(f"Search Results for '{st.session_state.search_query}'")
@@ -181,6 +209,11 @@ def render_search_page():
                     sentiment = result.get("sentiment", 0)
                     sentiment_color = "green" if sentiment > 0 else "red" if sentiment < 0 else "gray"
                     st.markdown(f"**Sentiment:** <span style='color:{sentiment_color}'>{sentiment:.2f}</span>", unsafe_allow_html=True)
+                    
+                    # Add a button to open the URL
+                    if st.button(f"Visit Source: {result['source']}", key=f"btn_visit_{result['source']}"):
+                        # Log the click
+                        log_activity("Source Visit", f"Clicked on source: {result['source']} ({result['url']})")
 
 
 def render_mindmaps_page():
@@ -206,16 +239,22 @@ def render_mindmaps_page():
     # Display mind map
     if st.session_state.get("mindmap_submitted", False):
         with st.spinner("Generating mind map..."):
-            # This would normally call the API, but we'll mock it for now
-            # response = requests.post(
-            #     f"{API_BASE_URL}/mindmap",
-            #     json={"entity": st.session_state.mindmap_entity, "relations": st.session_state.mindmap_relations}
-            # )
-            # if response.status_code == 200:
-            #     mind_map_data = response.json()
-            
-            # Mock data for demonstration
-            time.sleep(2)  # Simulate API call
+            # This would normally call the API with API key
+            try:
+                response = requests.post(
+                    f"{API_BASE_URL}/mindmap",
+                    json={"entity": st.session_state.mindmap_entity, "relations": st.session_state.mindmap_relations},
+                    headers=API_HEADERS
+                )
+                if response.status_code == 200:
+                    mind_map_data = response.json()
+                    # Process the real mind map data
+                    # For now, we'll still use the mock visualization
+                else:
+                    st.error(f"Error: API returned status code {response.status_code}")
+                    st.json(response.json())
+            except Exception as e:
+                st.error(f"Error connecting to API: {str(e)}")
             
             # Create a simple mind map using Plotly
             mind_map_html = create_mindmap(
@@ -264,17 +303,26 @@ def render_reports_page():
     # Display report
     if st.session_state.get("report_submitted", False):
         with st.spinner("Generating report..."):
-            # This would normally call the API, but we'll mock it for now
-            # response = requests.post(
-            #     f"{API_BASE_URL}/report",
-            #     json={
-            #         "competitor": st.session_state.report_competitor,
-            #         "time_period": st.session_state.report_time_period,
-            #         "report_type": st.session_state.report_type
-            #     }
-            # )
-            # if response.status_code == 200:
-            #     report_data = response.json()
+            # Try to call the API with API key
+            try:
+                response = requests.post(
+                    f"{API_BASE_URL}/report",
+                    json={
+                        "competitor": st.session_state.report_competitor,
+                        "time_period": st.session_state.report_time_period,
+                        "report_type": st.session_state.report_type
+                    },
+                    headers=API_HEADERS
+                )
+                if response.status_code == 200:
+                    report_data = response.json()
+                    # Process the real report data
+                    # For now, we'll still use the mock data
+                else:
+                    st.error(f"Error: API returned status code {response.status_code}")
+                    st.json(response.json())
+            except Exception as e:
+                st.error(f"Error connecting to API: {str(e)}")
             
             # Mock data for demonstration
             time.sleep(2)  # Simulate API call
@@ -402,7 +450,7 @@ def render_settings_page():
     # API settings
     st.header("API Configuration")
     with st.form("api_settings"):
-        api_key = st.text_input("API Key", value="••••••••••••••••", type="password")
+        api_key = st.text_input("API Key", value=settings.api_key if settings.api_key else "••••••••••••••••", type="password")
         host = st.text_input("API Host", value=settings.host)
         port = st.number_input("API Port", value=settings.port)
         
@@ -411,8 +459,8 @@ def render_settings_page():
     # Data source settings
     st.header("Data Sources")
     with st.form("data_sources"):
-        google_api_key = st.text_input("Google API Key", value="••••••••••••••••", type="password")
-        google_cx = st.text_input("Google Search Engine ID", value="••••••••••••••••", type="password")
+        google_api_key = st.text_input("Google API Key", value=settings.google_api_key[:5] + "••••••••••••" if settings.google_api_key else "••••••••••••••••", type="password")
+        google_cx = st.text_input("Google Search Engine ID", value=settings.google_search_engine_id[:5] + "••••••••••••" if settings.google_search_engine_id else "••••••••••••••••", type="password")
         
         news_sources = st.multiselect(
             "News Sources",
@@ -425,8 +473,8 @@ def render_settings_page():
     # Alert settings
     st.header("Alert Configuration")
     with st.form("alert_settings"):
-        enable_alerts = st.toggle("Enable Alerts", value=True)
-        alert_email = st.text_input("Alert Email", value="user@example.com")
+        enable_alerts = st.toggle("Enable Alerts", value=settings.enable_alerts)
+        alert_email = st.text_input("Alert Email", value=settings.alert_email if settings.alert_email else "user@example.com")
         
         alert_frequency = st.select_slider(
             "Alert Frequency",

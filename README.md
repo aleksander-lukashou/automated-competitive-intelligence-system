@@ -56,6 +56,32 @@ acis/
 1. Clone the repository
 2. Choose one of the following environment options:
 
+### Google API Configuration
+
+Before running the application, you need to set up the Google Custom Search API:
+
+1. Create a Google Cloud project at https://console.cloud.google.com/
+2. Enable the Custom Search API:
+   - Navigate to "APIs & Services" > "Library"
+   - Search for "Custom Search API" 
+   - Click on it and select "Enable"
+3. Create API credentials:
+   - Navigate to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "API Key"
+   - Copy the generated API key
+4. Set up a Custom Search Engine:
+   - Visit https://programmablesearchengine.google.com/
+   - Click "Add" to create a new search engine
+   - Configure your search engine settings
+   - Note your Search Engine ID (cx value)
+5. Add these values to your `.env` file:
+   ```
+   GOOGLE_API_KEY=your_google_api_key_here
+   GOOGLE_CX=your_custom_search_engine_id_here
+   ```
+
+**Important:** Even if you have valid API credentials, you must enable the Custom Search API in your Google Cloud project or you'll receive a 403 error with message "API not enabled".
+
 ### Option 1: Using Conda (Recommended)
 
 1. Create and activate a conda environment:
@@ -136,6 +162,25 @@ pip install -e .
 ```
 
 **Note:** You may still see some deprecation warnings after fixing these issues, but the application should function correctly.
+
+#### 6. Google Custom Search API Errors
+
+If you're receiving `"accessNotConfigured"` errors or the message "Custom Search API has not been used in project ... before or it is disabled", follow these steps:
+
+1. Ensure you've enabled the Custom Search API for your project:
+   - Go to https://console.cloud.google.com/apis/library/customsearch.googleapis.com
+   - Make sure your project is selected in the dropdown at the top
+   - Click "Enable" if it's not already enabled
+
+2. Verify your API credentials:
+   - Check that your API key in the `.env` file is correct
+   - Ensure the API key has access to the Custom Search API
+
+3. Confirm your Custom Search Engine setup:
+   - Verify your Search Engine ID (cx value) is correct in the `.env` file
+   - Check that your search engine is properly configured at https://programmablesearchengine.google.com/
+
+Note that changes to API settings may take a few minutes to propagate through Google's systems.
 
 ### Option 2: Using Python Virtual Environment
 

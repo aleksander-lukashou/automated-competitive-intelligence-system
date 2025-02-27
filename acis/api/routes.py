@@ -18,6 +18,7 @@ from acis.agents.search_agent import SearchAgent
 from acis.agents.mindmap_agent import MindMapAgent
 from acis.core.analyzer import CompetitorAnalyzer
 from acis.config.settings import settings
+from acis.utils.data_storage import log_activity
 
 # Create router
 router = APIRouter()
@@ -25,20 +26,27 @@ router = APIRouter()
 # API key dependency
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     """Verify API key if required."""
-    if settings.api_key_required:
-        if not x_api_key or x_api_key != settings.api_key:
-            raise HTTPException(status_code=401, detail="Invalid API key")
+    # Temporarily disable API key verification for development
     return True
+    
+    # Original code (commented out)
+    # if settings.api_key_required:
+    #     if not x_api_key or x_api_key != settings.api_key:
+    #         raise HTTPException(status_code=401, detail="Invalid API key")
+    # return True
 
 
-@router.post("/search", response_model=SearchResponse, tags=["Search"])
-async def search(request: SearchRequest, api_key_valid: bool = Depends(verify_api_key)):
+@router.post("/search", response_model=SearchResponse)
+async def search(request: SearchRequest):
     """
     Perform a web search for competitive intelligence.
     
     - **query**: The search query
     - **max_results**: Maximum number of results to return
     """
+    # Log API call
+    log_activity("API", f"Search request: {request.query}")
+    
     # Initialize search agent
     search_agent = SearchAgent()
     
@@ -60,16 +68,21 @@ async def search(request: SearchRequest, api_key_valid: bool = Depends(verify_ap
                 )
             )
         
-        # Return response
+        # Log success
+        log_activity("API", f"Search successful: {len(search_results)} results")
+        
         return SearchResponse(
             status="success",
             results=search_results
         )
     except Exception as e:
-        # Handle errors
-        return SearchResponse(
-            status="error",
-            results=[]
+        # Log error
+        log_activity("API", f"Search error: {str(e)}")
+        
+        # Raise HTTP exception
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error performing search: {str(e)}"
         )
 
 

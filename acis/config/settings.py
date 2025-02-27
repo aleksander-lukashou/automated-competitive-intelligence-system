@@ -6,9 +6,12 @@ Settings can be overridden by environment variables.
 """
 
 import os
+import logging
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     """Application settings."""
@@ -55,4 +58,11 @@ class Settings(BaseSettings):
 
 
 # Create settings instance
-settings = Settings() 
+settings = Settings()
+
+# Debug logging of critical settings
+logger.info("Settings loaded:")
+logger.info(f"GOOGLE_API_KEY: {settings.google_api_key[:5]}... (length: {len(settings.google_api_key) if settings.google_api_key else 0})")
+logger.info(f"GOOGLE_CX: {settings.google_search_engine_id} (length: {len(settings.google_search_engine_id) if settings.google_search_engine_id else 0})")
+logger.info(f"Environment variable GOOGLE_CX value: {os.environ.get('GOOGLE_CX', 'Not found')}")
+logger.info(f"API key required: {settings.api_key_required}") 
