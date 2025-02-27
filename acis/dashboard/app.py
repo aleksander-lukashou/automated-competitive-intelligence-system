@@ -146,35 +146,22 @@ def render_search_page():
     # Display search results
     if st.session_state.get("search_submitted", False):
         with st.spinner("Searching..."):
-            # This would normally call the API, but we'll mock it for now
-            # response = requests.post(
-            #     f"{API_BASE_URL}/search",
-            #     json={"query": st.session_state.search_query, "max_results": st.session_state.max_results}
-            # )
-            # if response.status_code == 200:
-            #     results = response.json().get("results", [])
-            
-            # Mock results for demonstration
-            time.sleep(1)  # Simulate API call
-            
-            results = [
-                {
-                    "source": "TechCrunch",
-                    "headline": f"New developments in {st.session_state.search_query.split()[0]} industry",
-                    "url": f"https://techcrunch.com/article/{st.session_state.search_query.replace(' ', '-')}",
-                    "date": "2023-06-15",
-                    "summary": f"Recent news about {st.session_state.search_query} indicates significant market movement.",
-                    "sentiment": 0.75
-                },
-                {
-                    "source": "Forbes",
-                    "headline": f"Financial analysis of {st.session_state.search_query.split()[0]}",
-                    "url": f"https://forbes.com/article/{st.session_state.search_query.replace(' ', '-')}",
-                    "date": "2023-06-10",
-                    "summary": f"Financial experts suggest that {st.session_state.search_query} market is growing at 15% annually.",
-                    "sentiment": 0.5
-                }
-            ]
+            try:
+                # Call the actual backend API
+                response = requests.post(
+                    f"{API_BASE_URL}/search",
+                    json={"query": st.session_state.search_query, "max_results": st.session_state.max_results}
+                )
+                
+                if response.status_code == 200:
+                    results = response.json().get("results", [])
+                else:
+                    st.error(f"Error: API returned status code {response.status_code}")
+                    st.json(response.json())
+                    results = []
+            except Exception as e:
+                st.error(f"Error connecting to API: {str(e)}")
+                results = []
             
             # Display results
             st.subheader(f"Search Results for '{st.session_state.search_query}'")
@@ -425,7 +412,7 @@ def render_settings_page():
     st.header("Data Sources")
     with st.form("data_sources"):
         google_api_key = st.text_input("Google API Key", value="••••••••••••••••", type="password")
-        bing_api_key = st.text_input("Bing API Key", value="••••••••••••••••", type="password")
+        google_cx = st.text_input("Google Search Engine ID", value="••••••••••••••••", type="password")
         
         news_sources = st.multiselect(
             "News Sources",

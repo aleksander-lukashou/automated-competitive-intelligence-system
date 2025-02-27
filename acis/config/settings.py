@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # External API settings
     openai_api_key: str = Field(default="", env="OPENAI_API_KEY")
     google_api_key: str = Field(default="", env="GOOGLE_API_KEY")
-    bing_api_key: str = Field(default="", env="BING_API_KEY")
+    google_search_engine_id: str = Field(default="", env="GOOGLE_CX")
     
     # Search settings
     search_results_limit: int = Field(default=10, env="ACIS_SEARCH_RESULTS_LIMIT")

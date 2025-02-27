@@ -130,7 +130,7 @@ class SearchAgent:
 
     async def _perform_search(self, query: str, max_results: int) -> List[Dict[str, Any]]:
         """
-        Perform search using external API.
+        Perform search using Google Custom Search API.
         
         Args:
             query: The search query
@@ -139,36 +139,88 @@ class SearchAgent:
         Returns:
             Raw search results
         """
-        # Placeholder for actual search API integration
-        # In a real implementation, this would connect to Google/Bing/etc.
+        # Google Custom Search API URL
+        search_url = "https://www.googleapis.com/customsearch/v1"
         
-        # Mock implementation for architecture demonstration
+        # Check if API key and search engine ID are configured
+        if not settings.google_api_key:
+            logger.error("Google API key not configured")
+            return self._get_mock_results(query, max_results)
+            
+        if not settings.google_search_engine_id:
+            logger.error("Google Search Engine ID not configured")
+            return self._get_mock_results(query, max_results)
+        
+        # Prepare parameters
+        params = {
+            "q": query,
+            "key": settings.google_api_key,
+            "cx": settings.google_search_engine_id,
+            "num": min(max_results, 10)  # API limits to 10 results per request
+        }
+        
+        results = []
+        
         async with aiohttp.ClientSession() as session:
             try:
-                # Simulating API call
-                await asyncio.sleep(1)
+                # Make the API request
+                async with session.get(search_url, params=params) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"Error from Google API: {error_text}")
+                        return self._get_mock_results(query, max_results)
+                    
+                    data = await response.json()
+                    
+                    # Process search results
+                    if "items" in data:
+                        for item in data["items"]:
+                            # Extract relevant information
+                            result = {
+                                "source": item.get("displayLink", "Unknown"),
+                                "headline": item.get("title", ""),
+                                "url": item.get("link", ""),
+                                "content": item.get("snippet", "")
+                            }
+                            results.append(result)
                 
-                # Mock results
-                mock_results = [
-                    {
-                        "source": "TechCrunch",
-                        "headline": f"New developments in {query.split()[0]} industry",
-                        "url": f"https://techcrunch.com/article/{query.replace(' ', '-')}",
-                        "content": f"Recent news about {query} indicates significant market movement. Companies are investing in new technologies and expanding their product offerings."
-                    },
-                    {
-                        "source": "Forbes",
-                        "headline": f"Financial analysis of {query.split()[0]}",
-                        "url": f"https://forbes.com/article/{query.replace(' ', '-')}",
-                        "content": f"Financial experts suggest that {query} market is growing at 15% annually. Key players are reporting strong quarterly results."
-                    }
-                ]
+                return results[:max_results]
                 
-                # Limit results
-                return mock_results[:max_results]
             except Exception as e:
                 logger.error(f"Error performing search: {e}")
-                return []
+                return self._get_mock_results(query, max_results)
+    
+    def _get_mock_results(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+        """
+        Generate mock search results when real search fails.
+        
+        Args:
+            query: The search query
+            max_results: Maximum number of results
+        
+        Returns:
+            Mock search results
+        """
+        logger.warning("Using mock search results due to API error or missing configuration")
+        
+        # Mock results for fallback
+        mock_results = [
+            {
+                "source": "TechCrunch",
+                "headline": f"New developments in {query.split()[0]} industry",
+                "url": f"https://techcrunch.com/article/{query.replace(' ', '-')}",
+                "content": f"Recent news about {query} indicates significant market movement. Companies are investing in new technologies and expanding their product offerings."
+            },
+            {
+                "source": "Forbes",
+                "headline": f"Financial analysis of {query.split()[0]}",
+                "url": f"https://forbes.com/article/{query.replace(' ', '-')}",
+                "content": f"Financial experts suggest that {query} market is growing at 15% annually. Key players are reporting strong quarterly results."
+            }
+        ]
+        
+        # Limit results
+        return mock_results[:max_results]
 
     async def _process_results(self, raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
