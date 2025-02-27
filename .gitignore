@@ -60,4 +60,12 @@ coverage.xml
 # Local data
 data/
 *.db
-*.sqlite3 
+*.sqlite3
+
+# Version specifier files
+*=*.*.*
+*>=*.*.*
+*<=*.*.*
+*~=*.*.*
+*>*.*.*
+*<*.*.* 
