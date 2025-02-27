@@ -1,0 +1,37 @@
+name: acis
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  # API Framework
+  - fastapi>=0.104.0
+  - uvicorn>=0.23.0
+  - pydantic>=2.4.0
+  # Dashboard
+  - streamlit>=1.28.0
+  - plotly>=5.18.0
+  - pandas>=2.1.0
+  - numpy>=1.24.0
+  # Networking
+  - aiohttp>=3.8.0
+  - requests>=2.31.0
+  # Data Parsing and Manipulation
+  - beautifulsoup4>=4.12.0
+  - lxml>=4.9.0
+  - python-dateutil>=2.8.0
+  # Graph Visualization
+  - networkx>=3.2.0
+  # Utilities
+  - python-dotenv>=1.0.0
+  - pytest>=7.4.0
+  # Pip dependencies for packages not in conda
+  - pip
+  - pip:
+    # Additional dependencies
+    - pydantic-settings>=2.0.0
+    # NLP and LLM (these may not be available in conda channels)
+    - langchain>=0.1.0
+    - langchain-community>=0.0.10
+    - openai>=1.3.0
+    - tiktoken>=0.5.0 
